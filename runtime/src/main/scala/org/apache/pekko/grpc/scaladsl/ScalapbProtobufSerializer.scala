@@ -40,8 +40,15 @@ class ScalapbProtobufSerializer[T <: GeneratedMessage](companion: GeneratedMessa
 
     ByteString.fromArrayUnsafe(frame)
   }
-  override def deserialize(bytes: ByteString): T =
-    companion.parseFrom(CodedInputStream.newInstance(bytes.asByteBuffer))
+  override def deserialize(bytes: ByteString): T = {
+    // Fast path: use byte array directly to avoid ByteBuffer wrapper allocation
+    val bb = bytes.asByteBuffer
+    if (bb.hasArray) {
+      companion.parseFrom(CodedInputStream.newInstance(bb.array(), bb.arrayOffset(), bb.remaining()))
+    } else {
+      companion.parseFrom(CodedInputStream.newInstance(bb))
+    }
+  }
   override def deserialize(data: InputStream): T =
     companion.parseFrom(data)
 }
