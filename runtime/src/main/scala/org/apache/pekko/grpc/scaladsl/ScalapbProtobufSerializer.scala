@@ -49,6 +49,16 @@ class ScalapbProtobufSerializer[T <: GeneratedMessage](companion: GeneratedMessa
       companion.parseFrom(CodedInputStream.newInstance(bb))
     }
   }
+  override private[grpc] def deserialize(data: ByteString, offset: Int, length: Int): T = {
+    // Offset-aware fast path: bypass ByteString.slice to avoid ByteString1 + ByteBuffer wrappers
+    val bb = data.asByteBuffer
+    if (bb.hasArray) {
+      companion.parseFrom(CodedInputStream.newInstance(bb.array(), bb.arrayOffset() + offset, length))
+    } else {
+      // Fallback for non-array-backed ByteStrings (rare in practice)
+      super.deserialize(data, offset, length)
+    }
+  }
   override def deserialize(data: InputStream): T =
     companion.parseFrom(data)
 }
